@@ -10,3 +10,9 @@ captures/
 *.apk
 *.aab
 output-metadata.json
+backend/node_modules/
+backend/dist/
+backend/data/
+backend/.env
+*.sqlite
+*.sqlite-*

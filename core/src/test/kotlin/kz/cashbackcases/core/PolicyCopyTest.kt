@@ -30,7 +30,6 @@ class PolicyCopyTest {
             "крипт",
             "crypto",
             "bitcoin",
-            "kaspi",
             "halyk",
             "technodom",
             "sulpak",
@@ -57,6 +56,16 @@ class PolicyCopyTest {
             }
         }
         assertTrue(violations.joinToString("\n"), violations.isEmpty())
+    }
+
+    @Test
+    fun sampleCatalogDoesNotNameRealPaymentBrandsAsMerchants() {
+        val catalog = SampleCatalog.collections.flatMap { it.offers }.joinToString("\n") {
+            "${it.merchantName} ${it.blurb} ${it.terms.joinToString(" ")}"
+        }.lowercase()
+        listOf("kaspi", "halyk", "technodom", "sulpak", "magnum").forEach { brand ->
+            assertTrue("catalog must not use «$brand» as a fictional merchant", brand !in catalog)
+        }
     }
 
     private fun repoRoot(): File {

@@ -19,7 +19,13 @@ class MainActivity : ComponentActivity() {
         )
         val app = application as CashbackApplication
         setContent {
-            val viewModel: CashbackViewModel = viewModel(factory = CashbackViewModel.factory(app.repository))
+            val viewModel: CashbackViewModel = viewModel(
+                factory = CashbackViewModel.factory(
+                    repository = app.repository,
+                    walletApi = app.walletApi,
+                    deviceIdStore = app.deviceIdStore,
+                ),
+            )
             CashbackTheme {
                 CashbackApp(viewModel)
             }
