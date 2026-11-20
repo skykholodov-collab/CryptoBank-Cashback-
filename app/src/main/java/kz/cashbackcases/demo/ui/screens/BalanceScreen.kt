@@ -1,5 +1,7 @@
 package kz.cashbackcases.demo.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -33,12 +36,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import kz.cashbackcases.core.CashbackEntry
 import kz.cashbackcases.core.CashbackStatus
 import kz.cashbackcases.core.DemoCopy
+import kz.cashbackcases.core.TopupStatus
+import kz.cashbackcases.core.WalletRules
 import kz.cashbackcases.core.WithdrawalPolicy
 import kz.cashbackcases.core.formatKzt
 import kz.cashbackcases.demo.R
@@ -51,17 +59,18 @@ import kz.cashbackcases.demo.ui.theme.GoldBright
 import kz.cashbackcases.demo.ui.theme.Ink
 import kz.cashbackcases.demo.ui.theme.InkCard
 import kz.cashbackcases.demo.ui.theme.InkRaised
-import kz.cashbackcases.demo.ui.theme.Line
 import kz.cashbackcases.demo.ui.theme.Muted
 import kz.cashbackcases.demo.ui.theme.Text
 
 @Composable
 fun BalanceScreen(viewModel: CashbackViewModel) {
     val state by viewModel.state.collectAsState()
+    val walletUi by viewModel.walletUi.collectAsState()
     val withdrawal = WithdrawalPolicy.request(state)
     var confirmId by remember { mutableStateOf<String?>(null) }
     var showReset by remember { mutableStateOf(false) }
     val entries = state.entries.sortedByDescending { it.createdAtEpochMs }
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,6 +88,14 @@ fun BalanceScreen(viewModel: CashbackViewModel) {
             text = stringResource(R.string.balance_intro),
             style = MaterialTheme.typography.bodyLarge,
             color = Muted,
+        )
+        Spacer(Modifier.height(16.dp))
+        WalletSection(
+            apiConfigured = walletUi.apiConfigured,
+            balanceKzt = walletUi.wallet?.balanceKzt ?: 0L,
+            sandbox = walletUi.wallet?.sandbox == true,
+            loading = walletUi.loading,
+            onTopup = { viewModel.openTopupPicker() },
         )
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -221,6 +238,163 @@ fun BalanceScreen(viewModel: CashbackViewModel) {
                 }
             },
         )
+    }
+    if (walletUi.showAmountPicker) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissTopupPicker() },
+            containerColor = InkRaised,
+            titleContentColor = Text,
+            textContentColor = Muted,
+            title = { Text(stringResource(R.string.wallet_topup_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.wallet_topup_hint))
+                    Spacer(Modifier.height(12.dp))
+                    WalletRules.presetsKzt.forEach { amount ->
+                        OutlinedButton(
+                            onClick = { viewModel.startTopup(amount) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                                .testTag("wallet-amount-$amount"),
+                        ) {
+                            Text(formatKzt(amount), color = Cyan)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissTopupPicker() }) {
+                    Text(stringResource(R.string.cancel), color = Muted)
+                }
+            },
+        )
+    }
+    val activeTopup = walletUi.activeTopup
+    if (activeTopup != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissActiveTopup() },
+            containerColor = InkRaised,
+            titleContentColor = Text,
+            textContentColor = Muted,
+            title = { Text(stringResource(R.string.wallet_qr_title)) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${formatKzt(activeTopup.amountKzt)} · ${activeTopup.status.name}")
+                    if (activeTopup.sandbox) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(stringResource(R.string.wallet_qr_sandbox), color = GoldBright)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    val qrUrl = activeTopup.qrImageUrl
+                    if (!qrUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = qrUrl,
+                            contentDescription = stringResource(R.string.wallet_qr_title),
+                            modifier = Modifier
+                                .size(220.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .testTag(Tags.WALLET_QR),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = when (activeTopup.status) {
+                            TopupStatus.PAID -> stringResource(R.string.wallet_close)
+                            TopupStatus.EXPIRED, TopupStatus.CANCELLED, TopupStatus.ERROR ->
+                                activeTopup.errorMessage ?: stringResource(R.string.wallet_close)
+                            else -> stringResource(R.string.wallet_waiting)
+                        },
+                        color = if (activeTopup.status == TopupStatus.PAID) Cyan else Muted,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissActiveTopup() }) {
+                    Text(stringResource(R.string.wallet_close), color = Cyan)
+                }
+            },
+            dismissButton = {
+                val token = activeTopup.qrTokenUrl
+                if (!token.isNullOrBlank() && activeTopup.status != TopupStatus.PAID) {
+                    TextButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(token)))
+                        },
+                    ) {
+                        Text(stringResource(R.string.wallet_open_link), color = GoldBright)
+                    }
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun WalletSection(
+    apiConfigured: Boolean,
+    balanceKzt: Long,
+    sandbox: Boolean,
+    loading: Boolean,
+    onTopup: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(InkCard)
+            .border(1.dp, Cyan.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+            .padding(16.dp)
+            .testTag(Tags.WALLET_SECTION),
+    ) {
+        Text(
+            text = stringResource(R.string.wallet_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = Text,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.wallet_intro),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Muted,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = formatKzt(balanceKzt),
+            modifier = Modifier.testTag(Tags.WALLET_BALANCE),
+            style = MaterialTheme.typography.headlineMedium,
+            color = Cyan,
+        )
+        if (sandbox && apiConfigured) {
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.wallet_qr_sandbox), style = MaterialTheme.typography.labelMedium, color = GoldBright)
+        }
+        Spacer(Modifier.height(12.dp))
+        if (!apiConfigured) {
+            Text(
+                text = stringResource(R.string.wallet_not_configured),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Muted,
+            )
+        }
+        Button(
+            onClick = onTopup,
+            enabled = apiConfigured && !loading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(Tags.WALLET_TOPUP),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Cyan,
+                contentColor = Ink,
+                disabledContainerColor = Color(0xFF2A3238),
+                disabledContentColor = Muted,
+            ),
+        ) {
+            Text(stringResource(R.string.wallet_topup))
+        }
     }
 }
 

@@ -31,6 +31,8 @@ class DemoFlowTest {
         rule.onNodeWithTag(Tags.caseTab("service")).assertIsDisplayed()
 
         rule.onNodeWithTag(Tags.NAV_BALANCE).click()
+        rule.onNodeWithTag(Tags.WALLET_SECTION).assertIsDisplayed()
+        rule.onNodeWithTag(Tags.WALLET_TOPUP).assertIsNotEnabled()
         rule.onNodeWithTag(Tags.RESET).performScrollTo().click()
         rule.onNodeWithTag(Tags.CONFIRM_RESET).click()
         waitForAmount(Tags.BALANCE_PENDING, "840 ₸")

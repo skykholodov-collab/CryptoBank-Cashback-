@@ -27,6 +27,17 @@
     <string name="prior_confirmed">В истории уже есть локально подтверждённый образец по этому продавцу. Новая покупка создаст отдельную запись.</string>
     <string name="balance_title">Баланс образца</string>
     <string name="balance_intro">Суммы ниже — локальная история демо. Подтверждение не означает, что деньги можно забрать.</string>
+    <string name="wallet_title">Кошелёк</string>
+    <string name="wallet_intro">Отдельный баланс пополнений. Он не смешивается с образцовым кешбэком и не обещает доход.</string>
+    <string name="wallet_topup">Пополнить через Kaspi Pay</string>
+    <string name="wallet_topup_title">Пополнение кошелька</string>
+    <string name="wallet_topup_hint">Оплата через ApiPay поверх Kaspi Pay. Ключи хранятся только на сервере.</string>
+    <string name="wallet_qr_title">Отсканируйте QR в приложении Kaspi</string>
+    <string name="wallet_qr_sandbox">Тестовый режим: реальная оплата не выполняется.</string>
+    <string name="wallet_waiting">Ожидаем оплату…</string>
+    <string name="wallet_not_configured">Пополнение недоступно: нет адреса сервера. Укажите API_BASE_URL в local.properties.</string>
+    <string name="wallet_close">Закрыть</string>
+    <string name="wallet_open_link">Открыть ссылку оплаты</string>
     <string name="pending_label">Ожидает</string>
     <string name="confirmed_label">Подтверждено</string>
     <string name="pending_help">Ожидает — образец ещё не отмечен как проверенная покупка.</string>
